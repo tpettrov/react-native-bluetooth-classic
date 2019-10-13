@@ -120,7 +120,45 @@ The MIT License (MIT) - see full [license file](LICENSE)
 
 The BluetoothClassicExample is included within the ./BluetoothClassicExample React Native project.
 
-## Usage
+## Android Implementation
+
+When the RNBluetoothClassic module is configured and linked within Android and IOS the default functionality will be used:
+
+- Delimiter of `\n`
+- Encoding of UTF-8
+- OnReadParamWriter which provides an `BluetoothMessage` object:
+
+```json
+{ 
+  device: <BluetoothDevice>,
+  data: <String>,
+  timestamp: <Date>
+}
+```
+
+It's possible to override these configurations during the creation of the module.
+
+### Custom RNBluetoothClassicPackage
+
+The module is created through the `RNBluetoothClassicPackage` in the `MainApplication#getPackages` method.  At this time, you can use any of the RNBluetoothClassicPackage constructors to configure.  The available options are:
+
+```java
+public RNBluetoothClassicPackage()
+public RNBluetoothClassicPackage(String delimiter, String encoding)
+public RNBluetoothClassicPackage(String delimiter, String encoding, OnReadEventParamWriter writer)
+```
+
+#### Example OnReadEventParamWriter
+
+TODO
+
+## IOS Implementation
+
+### Custom RNBluetoothClassicModule
+
+
+
+### JavaScript Implementation
 
 Import the module using the following:
 
@@ -153,6 +191,7 @@ Function | Description | Android | IOS |
 | readUntilDelimiter() | Resovles with the content of the buffer up until the default delimiter.  To update the delimiter for the session use setDelimiter(delimiter:String).  This method should not be used in conjunction with the BTEvent.READ event as it could cause some unexpected behaviour. | :white_check_mark: | :white_check_mark: |
 | readUntilDelimiter(delimiter:String) | Resolves with the content of the buffer up until the provided delimiter.  This method should not be used in conjunction with the BTEvent.READ event as it could cause some unexpected behaviour. | :white_check_mark: | :white_check_mark: |
 | setDelimiter(delimiter:String) | Sets the new delimiter for future reads/read events and resolves true, resolves with the API to allow for fluent chaining | :white_check_mark: | :white_check_mark: |
+| setEncoding(encoding:String) | Sets the new encoding for future reads/read events and resolves true - if succesful the current buffer is cleared and resolves with the API to allow for fluent chaining.  If encoding is not available the promise is rejected. | :white_check_mark: | :white_check_mark: |
 | available() | Resolves **true\|false** based on whether data is available.  Use in conjunction with the read[until\|from] functions. | :white_check_mark: | :white_check_mark: |
 
 ### Code Examples
