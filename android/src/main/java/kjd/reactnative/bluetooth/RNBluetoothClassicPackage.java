@@ -12,20 +12,31 @@ import com.facebook.react.uimanager.ViewManager;
 import com.facebook.react.bridge.JavaScriptModule;
 
 /**
- * Registers the RNBluetoothClassicModule with ReactNative.
- * <p>
- * There are no ViewManagers provided with this Module.
+ * Instantiates the {@link RNBluetoothClassicModule}.  The {@link RNBluetoothClassicPackage} is
+ * provided to the MainApplication through the #getPackages method.  The package allows for
+ * customization of the delimiter and encoding upon creation - allowing it to be skipped
+ * during JavaScript configuration.
  *
  * @author kenjdavidson
  *
  */
 public class RNBluetoothClassicPackage implements ReactPackage {
 
-    static final String TAG = "RNBluetoothClassic";
+    private String mEncoding;
+    private String mDelimiter;
+
+    public RNBluetoothClassicPackage() {
+        this("\n", "ISO-8859-1");
+    }
+
+    public RNBluetoothClassicPackage(String delimiter, String encoding) {
+        this.mDelimiter = delimiter;
+        this.mEncoding = encoding;
+    }
 
     @Override
     public List<NativeModule> createNativeModules(ReactApplicationContext reactContext) {
-      return Arrays.<NativeModule>asList(new RNBluetoothClassicModule(reactContext));
+      return Arrays.<NativeModule>asList(new RNBluetoothClassicModule(reactContext, mDelimiter, mEncoding));
     }
 
     // Deprecated from RN 0.47

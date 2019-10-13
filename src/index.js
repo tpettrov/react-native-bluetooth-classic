@@ -36,23 +36,31 @@ class RNBluetoothClassic extends NativeEventEmitter {
   constructor(nativeModule) {
     super(nativeModule)
 
-    if (Platform.OS === 'android') this._nativeModule = nativeModule;
+    if (Platform.OS === 'android') 
+      this._nativeModule = nativeModule;
 
+    this.setAdapterName = nativeModule.setAdapterName;
     this.requestEnable = nativeModule.requestEnable;
     this.isEnabled = nativeModule.isEnabled;
     this.list = nativeModule.list;
-    this.connect = nativeModule.connect;
-    this.disconnect = nativeModule.disconnect;
-    this.writeToDevice = nativeModule.writeToDevice;
-
-    // Some/very untested functionality
-    this.discoverUnpairedDevices = nativeModule.discoverUnpairedDevices;
     this.discoverDevices = nativeModule.discoverDevices;
     this.cancelDiscovery = nativeModule.cancelDiscovery;
     this.pairDevice = nativeModule.pairDevice;
     this.unpairDevice = nativeModule.unpairDevice;
+
+    this.connect = nativeModule.connect;
+    this.disconnect = nativeModule.disconnect;
+    this.isConnected = nativeModule.isConnected;
     this.getConnectedDevice = nativeModule.getConnectedDevice;
-    
+
+    this.writeToDevice = nativeModule.writeToDevice;
+    this.available = nativeModule.available;
+    this.readFromDevice = nativeModule.readFromDevice;
+    this.readUntilDelimiter = nativeModule.readUntilDelimiter;
+    this.clear = nativeModule.clear;
+
+    this.setDelimiter = nativeModule.setDelimiter;
+    this.setEncoding = nativeModule.setEncoding;
   }
 
   /**
@@ -102,6 +110,20 @@ class RNBluetoothClassic extends NativeEventEmitter {
     this._nativeModule.writeToDevice(data.toString('base64'));
   }
 }
+
+/**
+ * Bluetooth Events available to the React Native environment.
+ */
+export const BTEvent = {
+  BLUETOOTH_ENABLED: "BLUETOOTH_ENABLED",
+  BLUETOOTH_DISABLED: "BLUETOOTH_DISABLED",
+  BLUETOOTH_CONNECTED: "BLUETOOTH_CONNECTED",
+  BLUETOOTH_DISCONNECTED: "BLUETOOTH_DISCONNECTED",
+  CONNECTION_SUCCESS: "CONNECTION_SUCCESS",
+  CONNECTION_FAILED: "CONNECTION_FAILED",
+  CONNECTION_LOST: "CONNECTION_LOST",
+  READ: "READ"
+};
 
 export const BTEvents = Platform.OS === 'ios' 
     ? NativeModules.RNBluetoothClassic.BTEvents // .getConstants() should actually work here

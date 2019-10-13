@@ -52,11 +52,6 @@ public class RNBluetoothClassicService {
      */
     private DeviceState mState;
 
-    /**
-     * Character set used for communications.
-     */
-    private final String mCharSet;
-
     private BluetoothDevice mDevice;
 
     /**
@@ -64,16 +59,11 @@ public class RNBluetoothClassicService {
      *
      * @param module which is responsible for handling communication
      */
-    RNBluetoothClassicService(RNBluetoothClassicModule module, String charSet) {
+    RNBluetoothClassicService(RNBluetoothClassicModule module) {
         this.mAdapter = BluetoothAdapter.getDefaultAdapter();
         this.mState = DeviceState.DISCONNECTED;
         this.mModule = module;
-        this.mCharSet = charSet;
         this.mDevice = null;
-    }
-
-    RNBluetoothClassicService(RNBluetoothClassicModule module) {
-        this(module, "ISO-8859-1");
     }
 
     /**
@@ -357,9 +347,10 @@ public class RNBluetoothClassicService {
             while (!mmCancelled) {
                 try {
                     if (mmInStream.available() > 0) {
-                        bytes = mmInStream.read(buffer); // Read from the InputStream
-                        String data = new String(buffer, 0, bytes, mCharSet);
-                        mModule.onData(data); // Send new data to the module to handle
+                        // Read bytes from the input stream and send them to the module for
+                        // processing.
+                        bytes = mmInStream.read(buffer);
+                        mModule.onData(buffer, bytes);
                     }
 
                     Thread.sleep(500);      // Pause
@@ -388,13 +379,12 @@ public class RNBluetoothClassicService {
         /**
          * Write to the connected OutStream.
          *
-         * @param buffer  The bytes to write
+         * @param buffer bytes to be written to the device.  Encoding should already be managed
+         *               prior to this send.
          */
         void write(byte[] buffer) {
             try {
-                String str = new String(buffer, "UTF-8");
-                if (D) Log.d(TAG, "Write in thread " + str);
-                mmOutStream.write(str.getBytes());
+                mmOutStream.write(buffer);
             } catch (Exception e) {
                 Log.e(TAG, "Exception during write", e);
                 mModule.onError(e);

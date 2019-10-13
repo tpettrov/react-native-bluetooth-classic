@@ -22,11 +22,15 @@ import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
 
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Method;
+import java.nio.charset.Charset;
+import java.nio.charset.IllegalCharsetNameException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -73,7 +77,7 @@ public class RNBluetoothClassicModule
    * an event to the ReactNative emitter based on the new state.
    * https://developer.android.com/reference/android/bluetooth/BluetoothAdapter#ACTION_STATE_CHANGED
    */
-  final BroadcastReceiver mBluetoothStateReceiver = new BroadcastReceiver() {
+  private final BroadcastReceiver mBluetoothStateReceiver = new BroadcastReceiver() {
     @Override
     public void onReceive(Context context, Intent intent) {
       final String action = intent.getAction();
@@ -100,7 +104,7 @@ public class RNBluetoothClassicModule
    * to the ReactNative emitter containing the state and deviceId which was connected.
    * https://developer.android.com/reference/android/bluetooth/BluetoothAdapter#ACTION_CONNECTION_STATE_CHANGED
    */
-  final BroadcastReceiver mBluetoothConnectionReceiver = new BroadcastReceiver() {
+  private final BroadcastReceiver mBluetoothConnectionReceiver = new BroadcastReceiver() {
     @Override
     public void onReceive(Context context, Intent intent) {
       final String action = intent.getAction();
@@ -114,7 +118,7 @@ public class RNBluetoothClassicModule
   };
 
   /**
-   * Delimeter used while reading.  It's possible the buffer may contain more than a single message
+   * Delimiter used while reading.  It's possible the buffer may contain more than a single message
    * when this occurs, the specified mDelimiter will be used to split, and cause multiple read
    * events.  With manual reading, the last instance of the mDelimiter will be used.  For example
    * if sending the command {@code ri} to retrieve the Reader Information, then a number of lines
@@ -123,6 +127,15 @@ public class RNBluetoothClassicModule
    * Defaults to "\n"
    */
   private String mDelimiter;
+
+  /**
+   * Encoding used while reading and writing.  The react-native-bluetooth-serial defaulted to
+   * ISO-8859-1 which seemed to be perfectly fine.  The IOS version has no matching, and was set to
+   * .utf8 - this was causing issues and needed to be changed, therefore I thought it best that
+   * we let the encoding be customized on both.
+   *
+   */
+  private String mEncoding;
 
   /**
    * Used to read/write data from the Connected bluetooth device.
@@ -159,11 +172,19 @@ public class RNBluetoothClassicModule
    * events to Javascript and registers itself for the appropriate Android events.
    *
    * @param reactContext react native context
+   * @param delimiter the delimiter to use within the application context
+   * @param encoding the encoding to use within the application context
    */
-  public RNBluetoothClassicModule(ReactApplicationContext reactContext) {
+  public RNBluetoothClassicModule(ReactApplicationContext reactContext, String delimiter, String encoding) {
     super(reactContext);
+
+    if (!Charset.isSupported(encoding)) {
+      throw new IllegalCharsetNameException(encoding);
+    }
+
     this.mReactContext = reactContext;
-    this.mDelimiter = "\n";
+    this.mDelimiter = delimiter;
+    this.mEncoding = encoding;
 
     if (mBluetoothAdapter == null) {
       mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -183,7 +204,27 @@ public class RNBluetoothClassicModule
     mReactContext.addLifecycleEventListener(this);
   }
 
+  /**
+   * Constructor.
+   *
+   * @param reactContext react native context
+   * @param delimiter the delimiter to use within the application context
+   */
+  public RNBluetoothClassicModule(ReactApplicationContext reactContext, String delimiter) {
+    this(reactContext, delimiter, "ISO-8859-1");
+  }
+
+  /**
+   * Constructor
+   *
+   * @param reactContext react native context
+   */
+  public RNBluetoothClassicModule(ReactApplicationContext reactContext) {
+    this(reactContext, "\n");
+  }
+
   @Override
+  @Nonnull
   public String getName() {
     return "RNBluetoothClassic";
   }
@@ -321,7 +362,7 @@ public class RNBluetoothClassicModule
    * Determine whether Bluetooth is enabled.  The promise is never rejected, only resolved with the
    * appropriate boolean flag.
    *
-   * @param promise resolve based on Bluetooth status
+   * @param promise resolve or rejects based on Bluetooth status
    */
   @ReactMethod
   public void isEnabled(Promise promise) {
@@ -335,7 +376,7 @@ public class RNBluetoothClassicModule
   /**
    * Lists the currently connected/bonded devices.
    *
-   * @param promise resolves the list of bonded devices.
+   * @param promise resolves or rejects the list of bonded devices.
    */
   @ReactMethod
   public void list(Promise promise) {
@@ -354,7 +395,7 @@ public class RNBluetoothClassicModule
   /**
    * Attempt to discover unpaired devices.
    *
-   * @param promise
+   * @param promise resolves or rejects the request to discover devices.
    */
   @ReactMethod
   public void discoverDevices(final Promise promise) {
@@ -373,7 +414,7 @@ public class RNBluetoothClassicModule
   /**
    * Attempts to cancel the discovery process.
    *
-   * @param promise
+   * @param promise resolves or rejects request to cancel discovery
    */
   @ReactMethod
   public void cancelDiscovery(final Promise promise) {
@@ -391,8 +432,8 @@ public class RNBluetoothClassicModule
    * Attempts to pair to the requested device Id - retrieves the device from the BluetoothAdapter
    * and attempts the pairing.
    *
-   * @param id
-   * @param promise
+   * @param id identifier of the device to attempt pairing
+   * @param promise resolves or rejects attempt to pair device
    */
   @ReactMethod
   public void pairDevice(String id, Promise promise) {
@@ -429,7 +470,7 @@ public class RNBluetoothClassicModule
    * and I don't particularly see a purpose for it now.  It would be better off having a general
    * purpose listener that will let us know when any device has just bonded.
    *
-   * @param device Device
+   * @param device device which is being paired
    *
    */
   private void pairDevice(BluetoothDevice device) throws DevicePairingException {
@@ -448,6 +489,9 @@ public class RNBluetoothClassicModule
   /**
    * Request that a device be unpaired.  The device Id is required - looked up using the
    * BluetoothAdapter and unpaired.
+   *
+   * @param id identifier of the device for which we want to unpair
+   * @param promise resolve or reject the attempt to unpair device
    */
   @ReactMethod
   public void unpairDevice(String id, Promise promise) {
@@ -544,14 +588,15 @@ public class RNBluetoothClassicModule
 
 
   /**
-   * Attempts to write to the device.  The message string should be encoded as Base64
+   * Attempts to write to the device.
    *
-   * @param message base64 encoded message to be sent
+   * @param message base64 encoded message to be sent.  Message will be Base64 decoded and provided
+   *                to the service.  The message should have been encoded correctly prior to
+   *                Base64 encoding in JavaScript.
    * @param promise resolved once the message has been written.
    */
   @ReactMethod
   public void writeToDevice(String message, Promise promise) {
-    if (D) Log.d(TAG, "Write " + message);
     byte[] data = Base64.decode(message, Base64.DEFAULT);
     mBluetoothService.write(data);
     promise.resolve(true);
@@ -562,7 +607,7 @@ public class RNBluetoothClassicModule
    * mDelimiter.  Note - there will never be data within the buffer if the application is currently
    * registered to receive read events.
    *
-   * @param promise
+   * @param promise resolves the request to read with string data
    */
   @ReactMethod
   public void readFromDevice(Promise promise) {
@@ -577,8 +622,8 @@ public class RNBluetoothClassicModule
    * Attempts to read from the device buffer - until the first instance of the mDelimiter.  Allows
    * for a different mDelimiter to be used than what was originally registered.
    *
-   * @param delimiter
-   * @param promise
+   * @param delimiter delimiter to use when reading data
+   * @param promise resolves the request with string data
    */
   @ReactMethod
   public void readUntilDelimiter(String delimiter, Promise promise) {
@@ -588,7 +633,7 @@ public class RNBluetoothClassicModule
   /**
    * Attempts to read from the device buffer - using the registered delimiter.
    *
-   * @param promise
+   * @param promise resolves the request with string data
    */
   @ReactMethod
   public void readUntilDelimiter(Promise promise) {
@@ -598,8 +643,8 @@ public class RNBluetoothClassicModule
   /**
    * Sets a new delimiter.
    *
-   * @param delimiter
-   * @param promise
+   * @param delimiter delimiter to use when reading or writing data
+   * @param promise resolves the request with string data
    */
   @ReactMethod
   public void setDelimiter(String delimiter, Promise promise) {
@@ -608,9 +653,27 @@ public class RNBluetoothClassicModule
   }
 
   /**
+   * Attempt to set the encoding used for parsing the string of data returned from the devices.
+   * When encoding changes, the contents of the buffer are cleared, to ensure there is no cross
+   * contamination of data.
+   *
+   * @param encoding encoding to use when reading or writing data
+   * @param promise resolves or rejects the request based on the allowed encoding types
+   */
+  @ReactMethod
+  public void setEncoding(String encoding, Promise promise) {
+    if (!Charset.isSupported(encoding)) {
+      throw new IllegalCharsetNameException(encoding);
+    }
+
+    this.mEncoding = encoding;
+    clear(promise);
+  }
+
+  /**
    * Clears the buffer.
    *
-   * @param promise
+   * @param promise always resolves to true
    */
   @ReactMethod
   public void clear(Promise promise) {
@@ -620,7 +683,7 @@ public class RNBluetoothClassicModule
 
   /**
    * Gets the available information within the buffer.
-   * @param promise
+   * @param promise resolves to the length of content available, ignoring delimiters
    */
   @ReactMethod
   public void available(Promise promise) {
@@ -631,15 +694,17 @@ public class RNBluetoothClassicModule
   /**
    * Attempts to set the BluetoothAdapter name.
    *
-   * @param newName
-   * @param promise
+   * @param newName name to which the adapter will be set
+   * @param promise resolves once the adapter is set.
    */
   @ReactMethod
   public void setAdapterName(String newName, Promise promise) {
     if (mBluetoothAdapter != null) {
       mBluetoothAdapter.setName(newName);
+      promise.resolve(true);
+    } else {
+      promise.reject(new IllegalStateException("Bluetooth adapter is not available"));
     }
-    promise.resolve(true);
   }
 
   /**
@@ -714,14 +779,18 @@ public class RNBluetoothClassicModule
    * We may need to take this a step further and customize how data is returned.  For example,
    * should each of the items be returned separately, or all at once?
    *
-   * @param data Message
+   * @param data the data retrieved from the device in byte array
+   * @param size the size of the data retrieved
+   *
+   * @throws UnsupportedEncodingException
    */
-  void onData (String data) {
+  void onData (byte[] data, int size) throws UnsupportedEncodingException {
     if (D) Log.d(TAG, String.format("Data received [%s]", data));
 
-    mBuffer.append(data);
+    String encoded = new String(data, 0, size, mEncoding);
+    mBuffer.append(encoded);
 
-    String message = null;
+    String message;
     while ((message = readUntil(this.mDelimiter)) != null) {
       BluetoothMessage bluetoothMessage
               = new BluetoothMessage<String>(deviceToWritableMap(mBluetoothService.connectedDevice()), message);
@@ -733,8 +802,8 @@ public class RNBluetoothClassicModule
    * Attempts to read from to the first (or if none end) delimiter.  If the delimiter is found
    * then the data is retreived and removed from the buffer.
    *
-   * @param delimiter
-   * @return
+   * @param delimiter delimiter to use when attempting to read data
+   * @return String content up until the next delimiter
    */
   private String readUntil(String delimiter) {
     String data = null;
@@ -851,7 +920,9 @@ public class RNBluetoothClassicModule
   }
 
   /**
-   * Register receiver for bluetooth device discovery
+   * Registers the {@link RNBluetoothClassicModule} as a {@link BroadcastReceiver} for the
+   * actions ACTION_FOUND and ACTION_DISCOVERY_FINISHED.  Handles these Intents by performing the
+   * appropriate pair or un-pair.
    */
   private void registerBluetoothDeviceDiscoveryReceiver() {
     IntentFilter intentFilter = new IntentFilter();
