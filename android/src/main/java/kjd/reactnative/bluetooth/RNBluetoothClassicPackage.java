@@ -32,7 +32,7 @@ public class RNBluetoothClassicPackage implements ReactPackage {
     public static final OnReadEventParamWriter BluetoothMessageParamWriter = new OnReadEventParamWriter() {
         @Override
         public WritableMap write(BluetoothDevice device, String contents) {
-            return new BluetoothMessage<String>(device, contents).asMap();
+            return new BluetoothMessage<>(device, contents).asMap();
         }
     };
 
