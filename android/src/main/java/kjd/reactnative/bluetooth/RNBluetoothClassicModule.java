@@ -35,7 +35,7 @@ import javax.annotation.Nullable;
 
 /**
  * Provides bridge between native Android functionality and React Native javascript.  Provides
- * @ReactMethod methods to Javascript to allow controlling/monitoring:
+ * {@link ReactMethod} methods to Javascript to allow controlling/monitoring:
  * <ul>
  *  <li>the Android Bluetooth configuration status</li>
  *  <li>connecting/disconnecting to specific devices</li>
@@ -112,7 +112,7 @@ public class RNBluetoothClassicModule
       if (BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED.equals(action)) {
         final BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
         if (D) Log.d(TAG, "Device connected: " + device.toString());
-        sendEvent(BluetoothEvent.BLUETOOTH_DISCONNECTED.code,  deviceToWritableMap(device));
+        sendEvent(BluetoothEvent.BLUETOOTH_DISCONNECTED.code,  RNUtils.deviceToWritableMap(device));
       }
     }
   };
@@ -136,6 +136,12 @@ public class RNBluetoothClassicModule
    *
    */
   private String mEncoding;
+
+  /**
+   * Provides a method for implementing applications to override how the READ event is mapped
+   * prior to sending.
+   */
+  private OnReadEventParamWriter mParamWriter;
 
   /**
    * Used to read/write data from the Connected bluetooth device.
@@ -175,7 +181,10 @@ public class RNBluetoothClassicModule
    * @param delimiter the delimiter to use within the application context
    * @param encoding the encoding to use within the application context
    */
-  public RNBluetoothClassicModule(ReactApplicationContext reactContext, String delimiter, String encoding) {
+  RNBluetoothClassicModule(ReactApplicationContext reactContext,
+                                  String delimiter,
+                                  String encoding,
+                                  OnReadEventParamWriter writer) {
     super(reactContext);
 
     if (!Charset.isSupported(encoding)) {
@@ -185,6 +194,7 @@ public class RNBluetoothClassicModule
     this.mReactContext = reactContext;
     this.mDelimiter = delimiter;
     this.mEncoding = encoding;
+    this.mParamWriter = writer;
 
     if (mBluetoothAdapter == null) {
       mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -202,25 +212,6 @@ public class RNBluetoothClassicModule
 
     mReactContext.addActivityEventListener(this);
     mReactContext.addLifecycleEventListener(this);
-  }
-
-  /**
-   * Constructor.
-   *
-   * @param reactContext react native context
-   * @param delimiter the delimiter to use within the application context
-   */
-  public RNBluetoothClassicModule(ReactApplicationContext reactContext, String delimiter) {
-    this(reactContext, delimiter, "ISO-8859-1");
-  }
-
-  /**
-   * Constructor
-   *
-   * @param reactContext react native context
-   */
-  public RNBluetoothClassicModule(ReactApplicationContext reactContext) {
-    this(reactContext, "\n");
   }
 
   @Override
@@ -296,8 +287,6 @@ public class RNBluetoothClassicModule
 
   /**
    * Send event to javascript.
-   * <p>
-   * TODO pull this into it's own class incase the library gets extended
    *
    * @param eventName Name of the event
    * @param params Additional params
@@ -384,7 +373,7 @@ public class RNBluetoothClassicModule
     if (mBluetoothAdapter != null) {
       Set<BluetoothDevice> bondedDevices = mBluetoothAdapter.getBondedDevices();
       for (BluetoothDevice rawDevice : bondedDevices) {
-        WritableMap device = deviceToWritableMap(rawDevice);
+        WritableMap device = RNUtils.deviceToWritableMap(rawDevice);
         deviceList.pushMap(device);
       }
     }
@@ -581,7 +570,7 @@ public class RNBluetoothClassicModule
   @ReactMethod
   public void getConnectedDevice(Promise promise) {
     if (mBluetoothService.isConnected()) {
-      promise.resolve(deviceToWritableMap(mBluetoothService.connectedDevice()));
+      promise.resolve(RNUtils.deviceToWritableMap(mBluetoothService.connectedDevice()));
     }
     promise.reject(new Error("No bluetooth device connected"));
   }
@@ -719,7 +708,7 @@ public class RNBluetoothClassicModule
     // device.
     //sendEvent(BluetoothEvent.CONNECTION_SUCCESS.code, null);
     if (mConnectedPromise != null) {
-      mConnectedPromise.resolve(deviceToWritableMap(device));
+      mConnectedPromise.resolve(RNUtils.deviceToWritableMap(device));
     }
     mConnectedPromise = null;
   }
@@ -736,7 +725,7 @@ public class RNBluetoothClassicModule
     // device.
     //sendEvent(BluetoothEvent.CONNECTION_FAILED.code, null);
     if (mConnectedPromise != null) {
-      mConnectedPromise.reject(new Exception("Connection unsuccessful"), deviceToWritableMap(device));
+      mConnectedPromise.reject(new Exception("Connection unsuccessful"), RNUtils.deviceToWritableMap(device));
     }
     mConnectedPromise = null;
   }
@@ -750,7 +739,7 @@ public class RNBluetoothClassicModule
    */
   void onConnectionLost (BluetoothDevice device) {
     WritableMap params = Arguments.createMap();
-    params.putMap("device", deviceToWritableMap(device));
+    params.putMap("device", RNUtils.deviceToWritableMap(device));
     params.putString("message", "Connection unsuccessful");
     sendEvent(BluetoothEvent.CONNECTION_LOST.code, params);
   }
@@ -782,19 +771,18 @@ public class RNBluetoothClassicModule
    * @param data the data retrieved from the device in byte array
    * @param size the size of the data retrieved
    *
-   * @throws UnsupportedEncodingException
+   * @throws UnsupportedEncodingException if requested encoding is not available or supported on
+   *          this device
    */
   void onData (byte[] data, int size) throws UnsupportedEncodingException {
-    if (D) Log.d(TAG, String.format("Data received [%s]", data));
+    String decoded = new String(data, 0, size, mEncoding);
+    if (D) Log.d(TAG, String.format("Data received [%s]", decoded));
 
-    String encoded = new String(data, 0, size, mEncoding);
-    mBuffer.append(encoded);
+    mBuffer.append(decoded);
 
     String message;
     while ((message = readUntil(this.mDelimiter)) != null) {
-      BluetoothMessage bluetoothMessage
-              = new BluetoothMessage<String>(deviceToWritableMap(mBluetoothService.connectedDevice()), message);
-      sendEvent(BluetoothEvent.READ.code, bluetoothMessage.asMap());
+      sendEvent(BluetoothEvent.READ.code, mParamWriter.write(mBluetoothService.connectedDevice(), message));
     }
   }
 
@@ -814,24 +802,6 @@ public class RNBluetoothClassicModule
       mBuffer.delete(0, len);
     }
     return data;
-  }
-
-  /**
-   * Convert BluetoothDevice into WritableMap.
-   *
-   * @param device Bluetooth device
-   */
-  private WritableMap deviceToWritableMap(BluetoothDevice device) {
-    WritableMap params = Arguments.createMap();
-
-    params.putString("name", device.getName());
-    params.putString("address", device.getAddress());
-    params.putString("id", device.getAddress());
-
-    // Extra Android specific details
-    params.putInt("class", device.getBluetoothClass() != null
-            ? device.getBluetoothClass().getDeviceClass() : -1);
-    return params;
   }
 
   /**
@@ -938,7 +908,7 @@ public class RNBluetoothClassicModule
 
         if (BluetoothDevice.ACTION_FOUND.equals(action)) {
           BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-          WritableMap d = deviceToWritableMap(device);
+          WritableMap d = RNUtils.deviceToWritableMap(device);
           unpairedDevices.pushMap(d);
         } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
           if (D) Log.d(TAG, "Discovery finished");
