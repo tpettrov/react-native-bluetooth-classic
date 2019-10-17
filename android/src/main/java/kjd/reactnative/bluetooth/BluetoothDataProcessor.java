@@ -18,6 +18,6 @@ public interface OnReadEventParamWriter {
      * @param contents the String contents of the message
      * @return WritableMap which will be sent to React Native
      */
-    public WritableMap write(BluetoothDevice device, String contents);
+    WritableMap write(BluetoothDevice device, String contents);
 
 }
