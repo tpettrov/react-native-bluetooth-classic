@@ -1,6 +1,7 @@
 package kjd.reactnative.bluetooth;
 
-public class DevicePairingException extends RuntimeException {
+@SuppressWarnings({"unused"})
+public class DevicePairingException extends IllegalStateException {
 
     public DevicePairingException() {
     }
@@ -15,10 +16,6 @@ public class DevicePairingException extends RuntimeException {
 
     public DevicePairingException(Throwable cause) {
         super(cause);
-    }
-
-    public DevicePairingException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
-        super(message, cause, enableSuppression, writableStackTrace);
     }
 
 }

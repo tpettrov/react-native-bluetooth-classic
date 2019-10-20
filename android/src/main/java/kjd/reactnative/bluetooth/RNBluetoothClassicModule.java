@@ -60,10 +60,9 @@ import javax.annotation.Nullable;
  */
 public class RNBluetoothClassicModule
         extends ReactContextBaseJavaModule
-        implements ActivityEventListener, LifecycleEventListener {
+        implements ActivityEventListener, LifecycleEventListener, BluetoothEventListener {
 
   private static final String TAG = "BluetoothClassicModule";
-
   private static final boolean D = BuildConfig.DEBUG;
 
   private BluetoothAdapter mBluetoothAdapter;
@@ -141,10 +140,10 @@ public class RNBluetoothClassicModule
    * Provides a method for implementing applications to override how the READ event is mapped
    * prior to sending.
    */
-  private OnReadEventParamWriter mParamWriter;
+  private BluetoothDataProcessor mProcessor;
 
   /**
-   * Used to read/write data from the Connected bluetooth device.
+   * Used to read/processData data from the Connected bluetooth device.
    */
   private StringBuffer mBuffer = new StringBuffer();
 
@@ -184,7 +183,7 @@ public class RNBluetoothClassicModule
   RNBluetoothClassicModule(ReactApplicationContext reactContext,
                                   String delimiter,
                                   String encoding,
-                                  OnReadEventParamWriter writer) {
+                                  BluetoothDataProcessor writer) {
     super(reactContext);
 
     if (!Charset.isSupported(encoding)) {
@@ -194,7 +193,7 @@ public class RNBluetoothClassicModule
     this.mReactContext = reactContext;
     this.mDelimiter = delimiter;
     this.mEncoding = encoding;
-    this.mParamWriter = writer;
+    this.mProcessor = writer;
 
     if (mBluetoothAdapter == null) {
       mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -289,7 +288,7 @@ public class RNBluetoothClassicModule
    * Send event to javascript.
    *
    * @param eventName Name of the event
-   * @param params Additional params
+   * @param params parameters to be sent to React Native.
    */
   private void sendEvent(String eventName, @Nullable WritableMap params) {
     if (mReactContext.hasActiveCatalystInstance()) {
@@ -440,7 +439,7 @@ public class RNBluetoothClassicModule
             mPairDevicePromise.reject(e);
             mPairDevicePromise = null;
           }
-          onError(e);
+          onError(device, e);
         }
       } else {
         mPairDevicePromise.reject(new Exception("Could not pair device " + id));
@@ -497,7 +496,7 @@ public class RNBluetoothClassicModule
             mPairDevicePromise.reject(e);
             mPairDevicePromise = null;
           }
-          onError(e);
+          onError(device, e);
         }
       } else {
         mPairDevicePromise.reject(new Exception("Could not unpair device " + id));
@@ -577,7 +576,7 @@ public class RNBluetoothClassicModule
 
 
   /**
-   * Attempts to write to the device.
+   * Attempts to processData to the device.
    *
    * @param message base64 encoded message to be sent.  Message will be Base64 decoded and provided
    *                to the service.  The message should have been encoded correctly prior to
@@ -604,7 +603,7 @@ public class RNBluetoothClassicModule
     int length = mBuffer.length();
     String data = mBuffer.substring(0, length);
     mBuffer.delete(0, length);
-    promise.resolve(data);
+    promise.resolve(mProcessor.processData(mBluetoothService.connectedDevice(), data));
   }
 
   /**
@@ -616,7 +615,8 @@ public class RNBluetoothClassicModule
    */
   @ReactMethod
   public void readUntilDelimiter(String delimiter, Promise promise) {
-    promise.resolve(readUntil(delimiter));
+    String data = readUntil(delimiter);
+    promise.resolve(data == null ? null : mProcessor.processData(mBluetoothService.connectedDevice(), data));
   }
 
   /**
@@ -626,7 +626,8 @@ public class RNBluetoothClassicModule
    */
   @ReactMethod
   public void readUntilDelimiter(Promise promise) {
-    promise.resolve(readUntil(mDelimiter));
+    String data = readUntil(mDelimiter);
+    promise.resolve(data == null ? null : mProcessor.processData(mBluetoothService.connectedDevice(), data));
   }
 
   /**
@@ -701,7 +702,8 @@ public class RNBluetoothClassicModule
    *
    * @param device the device to which the connection was successful
    */
-  void onConnectionSuccess(BluetoothDevice device) {
+  @Override
+  public void onConnectionSuccess(BluetoothDevice device) {
     // Global device connection events have been moved to the BLUETOOTH_CONNECTED event which is
     // now a module registration.  I don't see it making sense to return a module event as well
     // as a resolved promise, since this should only ever be called after a request to a specific
@@ -717,8 +719,10 @@ public class RNBluetoothClassicModule
    * Rejects the connection attempt by
    *
    * @param device the device to which the connection was failed
+   * @param e the reason for which connection failed
    */
-  void onConnectionFailed(BluetoothDevice device) {
+  @Override
+  public void onConnectionFailed(BluetoothDevice device, Exception e) {
     // Global device connection events have been moved to the BLUETOOTH_DISCONNECTED event which is
     // now a module registration.  I don't see it making sense to return a module event as well
     // as a resolved promise, since this should only ever be called after a request to a specific
@@ -731,13 +735,15 @@ public class RNBluetoothClassicModule
   }
 
   /**
-   * Handle lost connection.  Unlike connectionSuccess and connectionFailed it is important
-   * that we manage a lost connection, as we may want to ensure it's still connected (bonded)
-   * and then re-connect (socket) to it.
+   * When a device connection is lost, the event is passed through to React Native.  The service
+   * will manage it's own connection state at this point, but if we implementing separate services
+   * per device we may need to manage them from here.
    *
-   * @param device the Device to which the connecion was lost
+   * @param device device for which the failure occurred
+   * @param e optional reason for the failure
    */
-  void onConnectionLost (BluetoothDevice device) {
+  @Override
+  public void onConnectionLost (BluetoothDevice device, Exception e) {
     WritableMap params = Arguments.createMap();
     params.putMap("device", RNUtils.deviceToWritableMap(device));
     params.putString("message", "Connection unsuccessful");
@@ -745,11 +751,24 @@ public class RNBluetoothClassicModule
   }
 
   /**
-   * Handle error.
+   * Errors are passed through to React Native.
    *
-   * @param e Exception
+   * @param device the device on which the error occurred
+   * @param e
    */
-  void onError (Exception e) {
+  @Override
+  public void onError (BluetoothDevice device, Exception e) {
+    WritableMap params = Arguments.createMap();
+    params.putString("message", e.getMessage());
+    sendEvent(BluetoothEvent.ERROR.code, params);
+  }
+
+  /**
+   * Handle on non-device related exceptions, by passing them through to React Native.
+   *
+   * @param e
+   */
+  private void onError(Exception e) {
     WritableMap params = Arguments.createMap();
     params.putString("message", e.getMessage());
     sendEvent(BluetoothEvent.ERROR.code, params);
@@ -768,13 +787,15 @@ public class RNBluetoothClassicModule
    * We may need to take this a step further and customize how data is returned.  For example,
    * should each of the items be returned separately, or all at once?
    *
+   * @param device device which sent the data
    * @param data the data retrieved from the device in byte array
    * @param size the size of the data retrieved
    *
    * @throws UnsupportedEncodingException if requested encoding is not available or supported on
    *          this device
    */
-  void onData (byte[] data, int size) throws UnsupportedEncodingException {
+  @Override
+  public void onDataReceived(BluetoothDevice device, byte[] data, int size) throws UnsupportedEncodingException {
     String decoded = new String(data, 0, size, mEncoding);
     if (D) Log.d(TAG, String.format("Data received [%s]", decoded));
 
@@ -782,7 +803,7 @@ public class RNBluetoothClassicModule
 
     String message;
     while ((message = readUntil(this.mDelimiter)) != null) {
-      sendEvent(BluetoothEvent.READ.code, mParamWriter.write(mBluetoothService.connectedDevice(), message));
+      sendEvent(BluetoothEvent.READ.code, mProcessor.write(mBluetoothService.connectedDevice(), message));
     }
   }
 
@@ -866,7 +887,7 @@ public class RNBluetoothClassicModule
               mReactContext.unregisterReceiver(this);
             } catch (Exception e) {
               Log.e(TAG, "Cannot unregister receiver", e);
-              onError(e);
+              onError(mBluetoothService.connectedDevice(), e);
             }
           } else if (state == BluetoothDevice.BOND_NONE && prevState == BluetoothDevice.BOND_BONDED){
             if (D) Log.d(TAG, "Device unpaired");
@@ -878,7 +899,7 @@ public class RNBluetoothClassicModule
               mReactContext.unregisterReceiver(this);
             } catch (Exception e) {
               Log.e(TAG, "Cannot unregister receiver", e);
-              onError(e);
+              onError(mBluetoothService.connectedDevice(), e);
             }
           }
 
@@ -921,7 +942,7 @@ public class RNBluetoothClassicModule
             mReactContext.unregisterReceiver(this);
           } catch (Exception e) {
             Log.e(TAG, "Unable to unregister receiver", e);
-            onError(e);
+            onError(mBluetoothService.connectedDevice(), e);
           }
         }
       }

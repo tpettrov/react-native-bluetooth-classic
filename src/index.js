@@ -112,21 +112,23 @@ class RNBluetoothClassic extends NativeEventEmitter {
 }
 
 /**
- * Bluetooth Events available to the React Native environment.
+ * Bluetooth Events available to the React Native environment.  These were previously added using the initial constants
+ * from either Android or IOS, but it seemed better to have them here so that they could be accessed directly/through
+ * intellisense rather than guessing.
  */
-export const BTEvent = {
-  BLUETOOTH_ENABLED: "BLUETOOTH_ENABLED",
-  BLUETOOTH_DISABLED: "BLUETOOTH_DISABLED",
-  BLUETOOTH_CONNECTED: "BLUETOOTH_CONNECTED",
-  BLUETOOTH_DISCONNECTED: "BLUETOOTH_DISCONNECTED",
-  CONNECTION_SUCCESS: "CONNECTION_SUCCESS",
-  CONNECTION_FAILED: "CONNECTION_FAILED",
-  CONNECTION_LOST: "CONNECTION_LOST",
-  READ: "READ"
+export const BTEvents = {
+  BLUETOOTH_ENABLED: "bluetoothEnabled",
+  BLUETOOTH_DISABLED: "bluetoothDisabled",
+  BLUETOOTH_CONNECTED: "bluetoothConnected",
+  BLUETOOTH_DISCONNECTED: "bluetoothDisconnected",
+  CONNECTION_SUCCESS: "connectionSuccess",
+  CONNECTION_FAILED: "connectionFailed",
+  CONNECTION_LOST: "connectionLost",
+  READ: "read",
+  ERROR: "error"
 };
 
-export const BTEvents = Platform.OS === 'ios' 
-    ? NativeModules.RNBluetoothClassic.BTEvents // .getConstants() should actually work here
-    : NativeModules.RNBluetoothClassic.getConstants().BTEvents;   
- 
+ /**
+  * Initialize and export the RNBluetoothClassic instance with the appropriate native modules.
+  */ 
 export default new RNBluetoothClassic(NativeModules.RNBluetoothClassic);

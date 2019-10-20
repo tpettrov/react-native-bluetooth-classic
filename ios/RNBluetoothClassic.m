@@ -52,6 +52,8 @@ RCT_EXTERN_METHOD(clear: (RCTPromiseResolveBlock)resolve)
 
 RCT_EXTERN_METHOD(setDelimiter: (NSString)delimiter)
 
+RCT_EXTERN_METHOD(setEncoding: (NSString)encodingStr)
+
 RCT_EXTERN_METHOD(setAdapterName: (NSString)name
                   resolver: (RCTPromiseResolveBlock)resolve
                   rejecter: (RCTPromiseRejectBlock)reject)

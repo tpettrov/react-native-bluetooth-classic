@@ -32,6 +32,8 @@ import CoreBluetooth
 @objc(RNBluetoothClassic)
 class RNBluetoothClassic : RCTEventEmitter, BluetoothRecievedDelegate {
     
+    private class 
+    
     let eaManager: EAAccessoryManager
     let cbCentral: CBCentralManager
     let notificationCenter: NotificationCenter
@@ -39,21 +41,29 @@ class RNBluetoothClassic : RCTEventEmitter, BluetoothRecievedDelegate {
     
     var peripheral:BluetoothDevice?
     var delimiter:String
+    var encoding:String.Encoding
+    var onReadWriter:OnReadEventParamWriter
     
     /**
      Initialize the RNBluetoothClassic.
      */
-    override init() {
+    init(withDelimiter delimiter:String, withEncoding encoding:String.Encoding, onReadWriter: OnReadEventParamWriter) {
         self.eaManager = EAAccessoryManager.shared()
         self.cbCentral = CBCentralManager()
         self.notificationCenter = NotificationCenter.default
         self.supportedProtocols = Bundle.main
             .object(forInfoDictionaryKey: "UISupportedExternalAccessoryProtocols") as! [String]
-        self.delimiter = "\n"
+        self.delimiter = delimiter
+        self.encoding = encoding
+        self.onReadWriter = onReadWriter
         
         super.init()
         
         registerForLocalNotifications()
+    }
+    
+    convenience override init() {
+        self.init(withDelimiter:"\n", withEncoding:.utf8)
     }
     
     /**
@@ -464,6 +474,21 @@ class RNBluetoothClassic : RCTEventEmitter, BluetoothRecievedDelegate {
     ) -> Void {
         self.delimiter = delimiter
         resolve(true)
+    }
+    
+    @objc
+    func setEncoding(
+        _ encodingStr: String,
+        resolver resolve: RCTPromiseResolveBlock,
+        rejecter reject: RCTPromiseRejectBlock
+    ) -> Void {
+        if let encoding = StringEncodingUtils.parseEncoding(encodingStr) {
+            self.encoding = encoding
+            resolve(true)
+        } else {
+            let msg: String = "Requested encoding is unavailable"
+            reject("error", msg, NSError())
+        }
     }
     
     /**

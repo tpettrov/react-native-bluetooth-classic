@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.util.Log;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.UUID;
@@ -45,7 +46,7 @@ public class RNBluetoothClassicService {
     /**
      * Allows for communication of incoming data
      */
-    private RNBluetoothClassicModule mModule;
+    private BluetoothEventListener mModule;
 
     /**
      * Current connection state
@@ -89,7 +90,7 @@ public class RNBluetoothClassicService {
     }
 
     /**
-     * Check whether service is connected to device
+     * Check whether service is connected to device.
      *
      * @return Is connected to device
      */
@@ -107,8 +108,11 @@ public class RNBluetoothClassicService {
     }
 
     /**
-     * Write to the ConnectedThread in an unsynchronized manner
-     * @param out The bytes to write
+     * Writes to the connected device through the synchronized {@link ConnectedThread}.  The actual
+     * writing to the thread is unsynchronized.
+     *
+     * @param out The bytes to processData
+     *
      * @see ConnectedThread#write(byte[])
      */
     void write(byte[] out) {
@@ -121,11 +125,12 @@ public class RNBluetoothClassicService {
             r = mConnectedThread;
         }
 
-        r.write(out); // Perform the write unsynchronized
+        r.write(out); // Perform the processData unsynchronized
     }
 
     /**
-     * Stop all threads
+     * Attempts to gracefully stop the connect and connected threads.  Sets the device state to
+     * DISCONNECTED.
      */
     synchronized void stop() {
         if (D) Log.d(TAG, "Stopping RNBluetoothClassic service");
@@ -180,16 +185,16 @@ public class RNBluetoothClassicService {
      *
      * @param device to which the connection was attempted
      */
-    private void connectionFailed(BluetoothDevice device) {
-        mModule.onConnectionFailed(device); // Send a failure message
+    private void connectionFailed(BluetoothDevice device, Exception e) {
+        mModule.onConnectionFailed(device, e);
         RNBluetoothClassicService.this.stop(); // Start the service over to restart listening mode
     }
 
     /**
      * Indicate that the connection was lost and notify the UI Activity.
      */
-    private void connectionLost(BluetoothDevice device) {
-        mModule.onConnectionLost(device);  // Send a failure message
+    private void connectionLost(BluetoothDevice device, Exception e) {
+        mModule.onConnectionLost(device, e);  // Send a failure message
         RNBluetoothClassicService.this.stop(); // Start the service over to restart listening mode
     }
 
@@ -236,7 +241,7 @@ public class RNBluetoothClassicService {
             try {
                 tmp = device.createRfcommSocketToServiceRecord(UUID_SPP);
             } catch (Exception e) {
-                mModule.onError(e);
+                mModule.onError(mmDevice, e);
                 Log.e(TAG, "Socket create() failed", e);
             }
             mmSocket = tmp;
@@ -259,7 +264,9 @@ public class RNBluetoothClassicService {
                 // See https://github.com/don/RCTBluetoothSerialModule/issues/89
                 try {
                     Log.i(TAG,"Trying fallback...");
-                    mmSocket = (BluetoothSocket) mmDevice.getClass().getMethod("createRfcommSocket", new Class[] {int.class}).invoke(mmDevice,1);
+                    mmSocket = (BluetoothSocket) mmDevice.getClass()
+                            .getMethod("createRfcommSocket", new Class[] {int.class})
+                            .invoke(mmDevice,1);
                     mmSocket.connect();
                 } catch (Exception e2) {
                     Log.e(TAG, "Couldn't establish a Bluetooth connection.");
@@ -267,10 +274,10 @@ public class RNBluetoothClassicService {
                         mmSocket.close();
                     } catch (Exception e3) {
                         Log.e(TAG, "Unable to close() socket during connection failure", e3);
-                        mModule.onError(e3);
+                        mModule.onError(mmDevice, e3);
                     }
 
-                    connectionFailed(mmDevice);
+                    connectionFailed(mmDevice, e2);
                     return;
                 }
             } finally {
@@ -293,7 +300,7 @@ public class RNBluetoothClassicService {
                 mmSocket.close();
             } catch (Exception e) {
                 Log.e(TAG, "close() of connect socket failed", e);
-                mModule.onError(e);
+                mModule.onError(mmDevice, e);
             }
         }
     }
@@ -328,7 +335,7 @@ public class RNBluetoothClassicService {
                 tmpOut = socket.getOutputStream();
             } catch (Exception e) {
                 Log.e(TAG, "temp sockets not created", e);
-                mModule.onError(e);
+                mModule.onError(mmDevice, e);
             }
 
             mmInStream = tmpIn;
@@ -350,7 +357,7 @@ public class RNBluetoothClassicService {
                         // Read bytes from the input stream and send them to the module for
                         // processing.
                         bytes = mmInStream.read(buffer);
-                        mModule.onData(buffer, bytes);
+                        mModule.onDataReceived(mmDevice, buffer, bytes);
                     }
 
                     Thread.sleep(500);      // Pause
@@ -359,9 +366,7 @@ public class RNBluetoothClassicService {
 
                     if (!mmCancelled) {
                         // We didn't cancel the Thread so something else happened
-                        mModule.onError(e);
-                        connectionLost(mmDevice);
-                        RNBluetoothClassicService.this.stop(); // Start the service over to restart listening mode
+                        connectionLost(mmDevice, e);
                     }
 
                     break;
@@ -386,8 +391,8 @@ public class RNBluetoothClassicService {
             try {
                 mmOutStream.write(buffer);
             } catch (Exception e) {
-                Log.e(TAG, "Exception during write", e);
-                mModule.onError(e);
+                Log.e(TAG, "Exception during processData", e);
+                mModule.onError(mmDevice, e);
             }
         }
 

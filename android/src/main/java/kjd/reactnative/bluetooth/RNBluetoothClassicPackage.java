@@ -10,7 +10,6 @@ import java.util.List;
 import com.facebook.react.ReactPackage;
 import com.facebook.react.bridge.NativeModule;
 import com.facebook.react.bridge.ReactApplicationContext;
-import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.uimanager.ViewManager;
 import com.facebook.react.bridge.JavaScriptModule;
 
@@ -25,33 +24,22 @@ import com.facebook.react.bridge.JavaScriptModule;
  */
 public class RNBluetoothClassicPackage implements ReactPackage {
 
-    /**
-     * The default OnReadEvenParamWriter converts the device and message into a
-     * {@link BluetoothMessage}&lt;String&gt;.
-     */
-    public static final OnReadEventParamWriter BluetoothMessageParamWriter = new OnReadEventParamWriter() {
-        @Override
-        public WritableMap write(BluetoothDevice device, String contents) {
-            return new BluetoothMessage<>(device, contents).asMap();
-        }
-    };
-
     public static final String DELIMITER = "\n";
     public static final String ENCODING = "UTF-8";
 
     private String mEncoding;
     private String mDelimiter;
-    private OnReadEventParamWriter mParamWriter;
+    private BluetoothDataProcessor mParamWriter;
 
     public RNBluetoothClassicPackage() {
         this(DELIMITER, ENCODING);
     }
 
     public RNBluetoothClassicPackage(String delimiter, String encoding) {
-        this(delimiter, encoding, BluetoothMessageParamWriter);
+        this(delimiter, encoding, BluetoothDataProcessor.BluetoothMessageProcessor);
     }
 
-    public RNBluetoothClassicPackage(String delimiter, String encoding, OnReadEventParamWriter writer) {
+    public RNBluetoothClassicPackage(String delimiter, String encoding, BluetoothDataProcessor writer) {
         this.mDelimiter = delimiter;
         this.mEncoding = encoding;
         this.mParamWriter = writer;

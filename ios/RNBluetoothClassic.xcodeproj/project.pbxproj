@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E838486523540C3C003B20DD /* StringEncodingUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = E838486423540C3C003B20DD /* StringEncodingUtils.swift */; };
+		E838486723540F4D003B20DD /* OnReadEventParamWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E838486623540F4D003B20DD /* OnReadEventParamWriter.swift */; };
 		E8D2258922B7C9E700A0CF65 /* RNBluetoothClassic.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8D2258822B7C9E700A0CF65 /* RNBluetoothClassic.swift */; };
 		E8D2258B22B7CA9F00A0CF65 /* RNBluetoothClassic.m in Sources */ = {isa = PBXBuildFile; fileRef = E8D2258A22B7CA9F00A0CF65 /* RNBluetoothClassic.m */; };
 		E8D2258D22B7CACA00A0CF65 /* BTEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8D2258C22B7CACA00A0CF65 /* BTEvent.swift */; };
@@ -31,6 +33,8 @@
 
 /* Begin PBXFileReference section */
 		134814201AA4EA6300B7C361 /* libRNBluetoothClassic.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libRNBluetoothClassic.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		E838486423540C3C003B20DD /* StringEncodingUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringEncodingUtils.swift; sourceTree = "<group>"; };
+		E838486623540F4D003B20DD /* OnReadEventParamWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnReadEventParamWriter.swift; sourceTree = "<group>"; };
 		E8D2258722B7C9E700A0CF65 /* RNBluetoothClassic-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "RNBluetoothClassic-Bridging-Header.h"; sourceTree = "<group>"; };
 		E8D2258822B7C9E700A0CF65 /* RNBluetoothClassic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RNBluetoothClassic.swift; sourceTree = "<group>"; };
 		E8D2258A22B7CA9F00A0CF65 /* RNBluetoothClassic.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = RNBluetoothClassic.m; sourceTree = "<group>"; };
@@ -64,6 +68,8 @@
 		58B511D21A9E6C8500147676 = {
 			isa = PBXGroup;
 			children = (
+				E838486623540F4D003B20DD /* OnReadEventParamWriter.swift */,
+				E838486423540C3C003B20DD /* StringEncodingUtils.swift */,
 				E8D2263122BC77E400A0CF65 /* BluetoothMessage.swift */,
 				E8D2262A22BC0E0500A0CF65 /* SubstringExtension.swift */,
 				E8D225D822B8847200A0CF65 /* BluetoothDevice.swift */,
@@ -135,9 +141,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E838486523540C3C003B20DD /* StringEncodingUtils.swift in Sources */,
 				E8D225D922B8847200A0CF65 /* BluetoothDevice.swift in Sources */,
 				E8D2259122B7CB0D00A0CF65 /* BTState.swift in Sources */,
 				E8D2258922B7C9E700A0CF65 /* RNBluetoothClassic.swift in Sources */,
+				E838486723540F4D003B20DD /* OnReadEventParamWriter.swift in Sources */,
 				E8D2262B22BC0E0500A0CF65 /* SubstringExtension.swift in Sources */,
 				E8D2263222BC77E400A0CF65 /* BluetoothMessage.swift in Sources */,
 				E8D2258F22B7CB0100A0CF65 /* BTRequest.swift in Sources */,

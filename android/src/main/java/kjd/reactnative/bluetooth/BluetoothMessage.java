@@ -9,9 +9,11 @@ import java.util.Calendar;
 import java.util.Date;
 
 /**
- * Wrapper for Bluetooth message contents.
+ * Wrapper for Bluetooth message contents.  By default BluetoothMessage(s) consist of: the related
+ * BluetoothDevice, the Timestamp of the message and data to be provided (in String form).  The
+ * message is immutable.
  *
- * @param <T>
+ * @param <T> type for which this BluetoothMessage provides wrapping
  */
 public class BluetoothMessage<T> {
 
