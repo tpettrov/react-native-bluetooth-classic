@@ -841,7 +841,7 @@ public class RNBluetoothClassicModule extends ReactContextBaseJavaModule
       int len = index + delimiter.length();
       data = mBuffer.substring(0, len);
       mBuffer.delete(0, len);
-    } else if (mBuffer.length() > 0) {
+    } else if (mBuffer.length() > 0 && mBase64Transfer) {
       data = mBuffer.substring(0, mBuffer.length());
       mBuffer.delete(0, mBuffer.length());
     }
