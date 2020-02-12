@@ -460,8 +460,8 @@ public class RNBluetoothClassicService {
                     // if (mmInStream.available() > 0) {
                     bytes = mmInStream.read(buffer); // Read from the InputStream
                     String data = new String(buffer, 0, bytes, mCharSet);
-                    byte[] encoded = Base64.encode(buffer, 0, bytes, Base64.DEFAULT);
-                    mModule.onData(data, new String(encoded)); // Send new data to the module to handle
+                    // byte[] encoded = Base64.encode(buffer, 0, bytes, Base64.DEFAULT);
+                    mModule.onData(data, buffer, bytes); // Send new data to the module to handle
                     // }
 
                     // Thread.sleep(500); // Pause

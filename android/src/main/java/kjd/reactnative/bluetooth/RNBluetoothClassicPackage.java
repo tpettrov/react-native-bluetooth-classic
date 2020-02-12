@@ -25,7 +25,7 @@ public class RNBluetoothClassicPackage implements ReactPackage {
 
     @Override
     public List<NativeModule> createNativeModules(ReactApplicationContext reactContext) {
-      return Arrays.<NativeModule>asList(new RNBluetoothClassicModule(reactContext));
+      return Arrays.<NativeModule>asList(new RNBluetoothClassicModule(reactContext, BluetoothClassicMiddlewareService.getInstance().getMiddlewares()));
     }
 
     // Deprecated from RN 0.47

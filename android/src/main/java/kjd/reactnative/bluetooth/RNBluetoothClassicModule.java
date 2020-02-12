@@ -22,8 +22,10 @@ import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
 
+import java.util.ArrayList;
 import java.lang.reflect.Method;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -71,6 +73,8 @@ public class RNBluetoothClassicModule extends ReactContextBaseJavaModule
   private RNBluetoothClassicService mBluetoothService;
 
   private ReactApplicationContext mReactContext;
+
+  private List<IRNBluetoothClassicMiddleware> mMiddlewares = new ArrayList<>();
 
   /**
    * Intent receiver responsible for handling changes to BluetoothAdapter state
@@ -185,6 +189,7 @@ public class RNBluetoothClassicModule extends ReactContextBaseJavaModule
     this.mReactContext = reactContext;
     this.mDelimiter = "\n";
 
+
     if (mBluetoothAdapter == null) {
       mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
     }
@@ -201,6 +206,15 @@ public class RNBluetoothClassicModule extends ReactContextBaseJavaModule
 
     mReactContext.addActivityEventListener(this);
     mReactContext.addLifecycleEventListener(this);
+  }
+
+  public RNBluetoothClassicModule(ReactApplicationContext reactContext, List<IRNBluetoothClassicMiddleware> middlewares) {
+    this(reactContext);
+
+    for (IRNBluetoothClassicMiddleware middleware: middlewares) {
+      middleware.setReactContext(reactContext);
+    }
+    this.mMiddlewares = middlewares;
   }
 
   @Override
@@ -809,19 +823,23 @@ public class RNBluetoothClassicModule extends ReactContextBaseJavaModule
    *
    * @param data Message
    */
-  void onData(String data, String base64string) {
+  void onData(String data, byte[] buffer, int bytes) {
     if (D)
       Log.d(TAG, String.format("Data received [%s]", data));
 
     mBuffer.append(data);
+
+    for (IRNBluetoothClassicMiddleware middleware : mMiddlewares) {
+      middleware.onData(buffer, bytes);
+    }
 
     String message = null;
     while ((message = readUntil(this.mDelimiter)) != null) {
       BluetoothMessage bluetoothMessage = new BluetoothMessage<String>(
           deviceToWritableMap(mBluetoothService.connectedDevice()), message);
       if (mBase64Transfer) {
-        bluetoothMessage = new BluetoothMessage<>(deviceToWritableMap(mBluetoothService.connectedDevice()), message,
-            base64string);
+        bluetoothMessage = new BluetoothMessage<String>(deviceToWritableMap(mBluetoothService.connectedDevice()),
+            message);
       }
       sendEvent(BluetoothEvent.READ.code, bluetoothMessage.asMap());
     }
@@ -841,7 +859,7 @@ public class RNBluetoothClassicModule extends ReactContextBaseJavaModule
       int len = index + delimiter.length();
       data = mBuffer.substring(0, len);
       mBuffer.delete(0, len);
-    } else if (mBuffer.length() > 0 && mBase64Transfer) {
+    } else if (mBuffer.length() > 0) {
       data = mBuffer.substring(0, mBuffer.length());
       mBuffer.delete(0, mBuffer.length());
     }
