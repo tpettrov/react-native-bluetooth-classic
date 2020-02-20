@@ -827,12 +827,13 @@ public class RNBluetoothClassicModule extends ReactContextBaseJavaModule
     if (D)
       Log.d(TAG, String.format("Data received [%s]", data));
 
-    mBuffer.append(data);
+    
     if (mFetchingGreenLog) {
       for (IRNBluetoothClassicMiddleware middleware : mMiddlewares) {
         middleware.onData(buffer, bytes);
       }
     } else {
+      mBuffer.append(data);
       String message = null;
       while ((message = readUntil(this.mDelimiter)) != null) {
         BluetoothMessage bluetoothMessage = new BluetoothMessage<String>(
