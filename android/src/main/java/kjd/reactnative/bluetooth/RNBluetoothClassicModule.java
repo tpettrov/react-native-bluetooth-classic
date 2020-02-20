@@ -837,10 +837,6 @@ public class RNBluetoothClassicModule extends ReactContextBaseJavaModule
     while ((message = readUntil(this.mDelimiter)) != null) {
       BluetoothMessage bluetoothMessage = new BluetoothMessage<String>(
           deviceToWritableMap(mBluetoothService.connectedDevice()), message);
-      if (mBase64Transfer) {
-        bluetoothMessage = new BluetoothMessage<String>(deviceToWritableMap(mBluetoothService.connectedDevice()),
-            message);
-      }
       sendEvent(BluetoothEvent.READ.code, bluetoothMessage.asMap());
     }
   }
@@ -859,9 +855,6 @@ public class RNBluetoothClassicModule extends ReactContextBaseJavaModule
       int len = index + delimiter.length();
       data = mBuffer.substring(0, len);
       mBuffer.delete(0, len);
-    } else if (mBuffer.length() > 0) {
-      data = mBuffer.substring(0, mBuffer.length());
-      mBuffer.delete(0, mBuffer.length());
     }
     return data;
   }
