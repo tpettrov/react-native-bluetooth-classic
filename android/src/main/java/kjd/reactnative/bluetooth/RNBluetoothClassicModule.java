@@ -174,7 +174,7 @@ public class RNBluetoothClassicModule extends ReactContextBaseJavaModule
    */
   private Promise mPairDevicePromise;
 
-  private Boolean mBase64Transfer = false;
+  private Boolean mFetchingGreenLog = false;
 
   /**
    * Creates a new RNBluetoothClassicModule. Attempts to get the BluetoothAdapter
@@ -692,8 +692,8 @@ public class RNBluetoothClassicModule extends ReactContextBaseJavaModule
    * @param promise
    */
   @ReactMethod
-  public void enableBase64(Boolean enable, Promise promise) {
-    this.mBase64Transfer = enable;
+  public void enableGreenLogFetch(Boolean enable, Promise promise) {
+    this.mFetchingGreenLog = enable;
     promise.resolve(true);
   }
 
@@ -828,16 +828,17 @@ public class RNBluetoothClassicModule extends ReactContextBaseJavaModule
       Log.d(TAG, String.format("Data received [%s]", data));
 
     mBuffer.append(data);
-
-    for (IRNBluetoothClassicMiddleware middleware : mMiddlewares) {
-      middleware.onData(buffer, bytes);
-    }
-
-    String message = null;
-    while ((message = readUntil(this.mDelimiter)) != null) {
-      BluetoothMessage bluetoothMessage = new BluetoothMessage<String>(
-          deviceToWritableMap(mBluetoothService.connectedDevice()), message);
-      sendEvent(BluetoothEvent.READ.code, bluetoothMessage.asMap());
+    if (mFetchingGreenLog) {
+      for (IRNBluetoothClassicMiddleware middleware : mMiddlewares) {
+        middleware.onData(buffer, bytes);
+      }
+    } else {
+      String message = null;
+      while ((message = readUntil(this.mDelimiter)) != null) {
+        BluetoothMessage bluetoothMessage = new BluetoothMessage<String>(
+            deviceToWritableMap(mBluetoothService.connectedDevice()), message);
+        sendEvent(BluetoothEvent.READ.code, bluetoothMessage.asMap());
+      }
     }
   }
 

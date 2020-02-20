@@ -1,5 +1,10 @@
-import { Platform, NativeModules, DeviceEventEmitter, NativeEventEmitter } from 'react-native';
-import { Buffer } from 'buffer';
+import {
+  Platform,
+  NativeModules,
+  DeviceEventEmitter,
+  NativeEventEmitter
+} from "react-native";
+import { Buffer } from "buffer";
 
 /**
  * Simulates the EmitterSubscription for Android, allowing the same functionality to be used without
@@ -17,7 +22,8 @@ class DeviceEventSubscription {
     DeviceEventEmitter.addListener(eventName, handler);
   }
 
-  remove = () => DeviceEventEmitter.removeListener(this.eventName, this.handler);
+  remove = () =>
+    DeviceEventEmitter.removeListener(this.eventName, this.handler);
 }
 
 /**
@@ -35,7 +41,7 @@ class RNBluetoothClassic extends NativeEventEmitter {
   constructor(nativeModule) {
     super(nativeModule);
 
-    if (Platform.OS === 'android') this._nativeModule = nativeModule;
+    if (Platform.OS === "android") this._nativeModule = nativeModule;
 
     this.setAdapterName = nativeModule.setAdapterName;
     this.requestEnable = nativeModule.requestEnable;
@@ -60,7 +66,7 @@ class RNBluetoothClassic extends NativeEventEmitter {
 
     this.setDelimiter = nativeModule.setDelimiter;
     this.setEncoding = nativeModule.setEncoding;
-    this.enableBase64 = nativeModule.enableBase64;
+    this.enableGreenLogFetch = nativeModule.enableGreenLogFetch;
   }
 
   /**
@@ -73,7 +79,7 @@ class RNBluetoothClassic extends NativeEventEmitter {
    * @param {object} context optional context object of the listener
    */
   addListener = (eventName, handler, context) => {
-    if (Platform.OS === 'ios') {
+    if (Platform.OS === "ios") {
       return super.addListener(eventName, handler, context);
     } else {
       return new DeviceEventSubscription(eventName, handler);
@@ -85,8 +91,8 @@ class RNBluetoothClassic extends NativeEventEmitter {
    *
    * @param {string} eventName which will have all it's listeners removed
    */
-  removeAllListeners = (eventName) => {
-    if (Platform.OS === 'ios') {
+  removeAllListeners = eventName => {
+    if (Platform.OS === "ios") {
       super.removeAllListeners(eventName);
     } else {
       DeviceEventEmitter.removeAllListeners(eventName);
@@ -103,16 +109,16 @@ class RNBluetoothClassic extends NativeEventEmitter {
    *
    * TODO modify for byte[] instead of string
    */
-  write = (data) => {
-    if (typeof data === 'string') {
+  write = data => {
+    if (typeof data === "string") {
       data = new Buffer(data);
     }
-    this._nativeModule.writeToDevice(data.toString('base64'));
+    this._nativeModule.writeToDevice(data.toString("base64"));
   };
 }
 
 export const BTEvents =
-  Platform.OS === 'ios'
+  Platform.OS === "ios"
     ? NativeModules.RNBluetoothClassic.BTEvents // .getConstants() should actually work here
     : NativeModules.RNBluetoothClassic.getConstants().BTEvents;
 
