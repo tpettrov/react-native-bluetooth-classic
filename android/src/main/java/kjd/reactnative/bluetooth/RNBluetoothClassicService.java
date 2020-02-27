@@ -510,6 +510,11 @@ public class RNBluetoothClassicService {
         synchronized void cancel() {
             if (D)
                 Log.d(TAG, String.format("Closing connection to %s", mmDevice.getAddress()));
+            try {
+                mmSocket.close();
+            } catch (Exception e) {
+                Log.e(TAG, "close() of connect socket failed", e);
+            }
             mmCancelled = true;
         }
     }
